@@ -77,3 +77,18 @@ def eliminar_comentario(comentario_id):
 def obtener_seguimiento(reporte_id):
     doc = mongo.seguimiento.find_one({"reporte_id": reporte_id})
     return doc["historial"] if doc else []
+def crear_usuario(nombre, correo, telefono):
+    return sb.table("usuarios").insert(
+        {"nombre": nombre, "correo": correo, "telefono": telefono or None}).execute().data[0]
+
+def actualizar_usuario(usuario_id, nombre, correo, telefono):
+    sb.table("usuarios").update(
+        {"nombre": nombre, "correo": correo, "telefono": telefono or None}).eq("id", usuario_id).execute()
+
+def eliminar_usuario(usuario_id):
+    # También limpia en MongoDB los datos de sus reportes
+    ids = [r["id"] for r in sb.table("reportes").select("id").eq("usuario_id", usuario_id).execute().data]
+    sb.table("usuarios").delete().eq("id", usuario_id).execute()  # sus reportes se borran en cascada
+    if ids:
+        mongo.comentarios.delete_many({"reporte_id": {"$in": ids}})
+        mongo.seguimiento.delete_many({"reporte_id": {"$in": ids}})

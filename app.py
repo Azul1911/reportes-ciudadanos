@@ -39,6 +39,8 @@ span[data-baseweb="tag"] span, span[data-baseweb="tag"] svg {color:#FFFFFF !impo
     border:1.5px solid #0B2F6B; border-radius:10px; font-weight:700;}
 .stButton > button p, .stFormSubmitButton > button p {color:#0B2F6B;}
 .stButton > button:hover {background:#E8F1FB; border-color:#0B2F6B;}
+.stButton > button:disabled {background:#F1F4F8; border-color:#C9D3E0;}
+.stButton > button:disabled p {color:#8A98AD;}
 .stButton > button[kind="primary"], .stFormSubmitButton > button[kind="primary"],
 button[data-testid="stBaseButton-primary"], button[data-testid="stBaseButton-primaryFormSubmit"] {
     background:#0B2F6B !important; border:1.5px solid #0B2F6B !important;}
@@ -51,9 +53,9 @@ button[data-testid="stBaseButton-primaryFormSubmit"] p {color:#FFFFFF !important
 .topbar span {color:#FFFFFF !important; font-size:.92rem; font-weight:500;}
 .st-key-navband {background:#DCEBFB; border-radius:16px; padding:.6rem 1.2rem; margin:.9rem 0 0;}
 .st-key-navband .stButton > button {width:100%; background:transparent; border:none; box-shadow:none;
-    color:#123F7A; padding:.55rem .4rem; white-space:nowrap;}
-.st-key-navband .stButton > button p {color:#123F7A !important; font-weight:800; font-size:.78rem;
-    text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;}
+    color:#123F7A; padding:.55rem .3rem; white-space:nowrap;}
+.st-key-navband .stButton > button p {color:#123F7A !important; font-weight:800; font-size:.74rem;
+    text-transform:uppercase; letter-spacing:.02em; white-space:nowrap;}
 .st-key-navband .stButton > button:hover {background:#C5DDF6;}
 .st-key-navband .stButton > button[kind="primary"],
 .st-key-navband button[data-testid="stBaseButton-primary"] {background:#123F7A !important;}
@@ -98,7 +100,7 @@ COLORES = {"recibido": ("#FEF3C7", "#92400E"), "en_revision": ("#DBEAFE", "#1E40
            "resuelto": ("#DCFCE7", "#166534")}
 AVISOS = {"info": ("#EAF3FF", "#9CC4F0", "#123F7A"), "warn": ("#FFF4D6", "#F2C94C", "#6B4B00"),
           "ok": ("#E3F7EA", "#86D3A0", "#14532D")}
-PAGINAS = ["Inicio", "Nuevo reporte", "Reportes", "Comentarios", "Vista combinada"]
+PAGINAS = ["Usuarios", "Nuevo reporte", "Consulta", "Reportes", "Comentarios", "Vista combinada"]
 folio = lambda i: f"RB-{i:04d}"
 
 def aviso(texto, tipo="info"):
@@ -156,15 +158,15 @@ def mapa(reportes):
 reportes = db.listar_reportes()
 fmt = lambda r: f"{folio(r['id'])} · {r['titulo']}"
 if "pagina" not in st.session_state:
-    st.session_state.pagina = "Inicio"
+    st.session_state.pagina = "Usuarios"
 
 # ---------- Encabezado: logo a la izquierda y menú en una sola línea ----------
 with st.container(key="navband"):
-    cols = st.columns([2.3, 1, 1.5, 1.2, 1.5, 1.8], vertical_alignment="center")
+    cols = st.columns([2.0, 1.1, 1.4, 1.1, 1.1, 1.4, 1.7], vertical_alignment="center")
     with cols[0]:
         logo = buscar_logo()
         if logo:
-            st.image(logo, width=200)
+            st.image(logo, width=190)
         else:
             st.markdown("### ReportaBaches")
     for col, nombre in zip(cols[1:], PAGINAS):
@@ -174,8 +176,75 @@ with st.container(key="navband"):
             st.rerun()
 pagina = st.session_state.pagina
 
-# ---------- INICIO ----------
-if pagina == "Inicio":
+# ---------- USUARIOS (Supabase) ----------
+if pagina == "Usuarios":
+    titulo("Registro", "Usuarios", "Personas que levantan reportes · guardados en Supabase")
+    with st.expander("➕ Registrar nuevo usuario"):
+        with st.form("nuevo_usuario", clear_on_submit=True):
+            a, b, c = st.columns(3)
+            nom = a.text_input("Nombre completo")
+            cor = b.text_input("Correo")
+            tel = c.text_input("Teléfono (opcional)")
+            guardar = st.form_submit_button("Registrar usuario", type="primary")
+        if guardar:
+            if not nom.strip() or not cor.strip():
+                aviso("Nombre y correo son obligatorios.", "warn")
+            elif "@" not in cor:
+                aviso("Escribe un correo válido.", "warn")
+            else:
+                try:
+                    db.crear_usuario(nom.strip(), cor.strip().lower(), tel.strip())
+                    aviso(f"Usuario {nom.strip()} registrado.", "ok")
+                except Exception as e:
+                    if "23505" in str(e) or "duplicate" in str(e).lower():
+                        aviso("Ya existe un usuario con ese correo.", "warn")
+                    else:
+                        aviso("No se pudo registrar el usuario. Intenta de nuevo.", "warn")
+
+    usuarios = db.listar_usuarios()
+    conteo = {}
+    for r in reportes:
+        conteo[r["usuario_id"]] = conteo.get(r["usuario_id"], 0) + 1
+    st.markdown(f"**{len(usuarios)} usuarios registrados**")
+    for u in usuarios:
+        with st.container(border=True):
+            st.caption(f"ID {u['id']} · {conteo.get(u['id'], 0)} reporte(s)")
+            a, b, c = st.columns(3)
+            n = a.text_input("Nombre", u["nombre"], key=f"un{u['id']}")
+            e = b.text_input("Correo", u["correo"], key=f"ue{u['id']}")
+            t = c.text_input("Teléfono", u.get("telefono") or "", key=f"ut{u['id']}")
+            x1, x2, x3 = st.columns([1, 1, 3])
+            if x1.button("Guardar", key=f"ug{u['id']}"):
+                db.actualizar_usuario(u["id"], n.strip(), e.strip().lower(), t.strip())
+                st.rerun()
+            ok = x3.checkbox("Confirmo que quiero eliminarlo junto con sus reportes", key=f"uc{u['id']}")
+            if x2.button("Eliminar", key=f"ud{u['id']}", disabled=not ok):
+                db.eliminar_usuario(u["id"])
+                st.rerun()
+
+# ---------- NUEVO REPORTE ----------
+elif pagina == "Nuevo reporte":
+    titulo("Ciudadanía", "Levanta un reporte", "Cuéntanos qué problema hay en tu colonia")
+    _, centro, _ = st.columns([1, 3, 1])
+    with centro:
+        with st.form("nuevo_reporte", clear_on_submit=True):
+            a, b = st.columns(2)
+            usuario = a.selectbox("Usuario", db.listar_usuarios(), format_func=lambda u: u["nombre"])
+            categoria = b.selectbox("Categoría", db.listar_categorias(), format_func=lambda c: c["nombre"])
+            t = st.text_input("Título")
+            d = st.text_area("Descripción")
+            dire = st.text_input("Dirección")
+            enviar = st.form_submit_button("Enviar reporte", type="primary")
+        if enviar:
+            if t and dire:
+                nuevo = db.crear_reporte({"usuario_id": usuario["id"], "categoria_id": categoria["id"],
+                                          "titulo": t, "descripcion": d, "direccion": dire})
+                aviso(f"Reporte registrado. Tu folio es {folio(nuevo['id'])}", "ok")
+            else:
+                aviso("Título y dirección son obligatorios.", "warn")
+
+# ---------- CONSULTA (búsqueda por folio + resumen) ----------
+elif pagina == "Consulta":
     titulo("Reportes", "Consulta de reportes", "Ingresa tu número de folio para consultar el estatus de tu reporte")
     st.markdown("<div style='height:2.6rem'></div>", unsafe_allow_html=True)
     _, centro, _ = st.columns([1, 2, 1])
@@ -214,27 +283,6 @@ if pagina == "Inicio":
         with st.container(border=True):
             st.subheader("Mapa de reportes")
             mapa(reportes)
-
-# ---------- NUEVO REPORTE ----------
-elif pagina == "Nuevo reporte":
-    titulo("Ciudadanía", "Levanta un reporte", "Cuéntanos qué problema hay en tu colonia")
-    _, centro, _ = st.columns([1, 3, 1])
-    with centro:
-        with st.form("nuevo_reporte", clear_on_submit=True):
-            a, b = st.columns(2)
-            usuario = a.selectbox("Usuario", db.listar_usuarios(), format_func=lambda u: u["nombre"])
-            categoria = b.selectbox("Categoría", db.listar_categorias(), format_func=lambda c: c["nombre"])
-            t = st.text_input("Título")
-            d = st.text_area("Descripción")
-            dire = st.text_input("Dirección")
-            enviar = st.form_submit_button("Enviar reporte", type="primary")
-        if enviar:
-            if t and dire:
-                nuevo = db.crear_reporte({"usuario_id": usuario["id"], "categoria_id": categoria["id"],
-                                          "titulo": t, "descripcion": d, "direccion": dire})
-                aviso(f"Reporte registrado. Tu folio es {folio(nuevo['id'])}", "ok")
-            else:
-                aviso("Título y dirección son obligatorios.", "warn")
 
 # ---------- REPORTES (Supabase) ----------
 elif pagina == "Reportes":
