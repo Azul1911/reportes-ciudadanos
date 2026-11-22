@@ -2,7 +2,7 @@
 
 Aplicación web para que la ciudadanía registre reportes urbanos (baches, fugas de agua y fallas de alumbrado) y consulte su estatus con un folio. Proyecto de la Unidad 3, Integración de aplicaciones y bases de datos.
 
-**App desplegada:** [URL de tu app .streamlit.app]
+**App desplegada:** https://bug-free-journey-jj79pp6vrgx6259gr-8501.app.github.dev/
 **Repositorio:** https://github.com/Azul1911/reportes-ciudadanos
 
 ## Problema que resuelve
