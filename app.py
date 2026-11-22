@@ -3,7 +3,7 @@ import streamlit as st
 import db
 
 st.set_page_config(page_title="Reportes Ciudadanos", page_icon="📍", layout="wide")
-st.title("📍 Reportes Ciudadanos de Ciudad Juárez")
+st.title(" Reportes Ciudadanos de Ciudad Juárez")
 ESTATUS = ["recibido", "en_revision", "resuelto"]
 
 reportes = db.listar_reportes()
