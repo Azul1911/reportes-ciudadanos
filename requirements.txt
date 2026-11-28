@@ -3,3 +3,6 @@ pymongo[srv]
 supabase
 python-dotenv
 pandas
+pydeck
+altair
+requests
